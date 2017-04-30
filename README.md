@@ -11,7 +11,19 @@ with credit card or in electronic/mobile bank.
 It reads SMS messages from IMAP server (gmail.com is used by default), parses them and generates bank statement
 as Excel 2010 table (.xlsx) file.
 
+Features:
+- Works correctly with more than one bank card
+- Supports multiple currencies (tested for Russian roubles and Ukraininan hrivnas)
+- Prints unknown (unparsable) transactions if executed with option '-w'
+
 Python 3 is required (maybe it works with Python 2, but it's not tested).
+Uses standard libraries from Python 3 distribution (re, imap, email etc.) with one exception: openpyxl (https://openpyxl.readthedocs.io) for MS Excel files creation
+
+ToDo's and limitations:
+- SSL connections don't check server's host names and certificates, 
+so you may be asked by Google to turn on less secure apps [here](https://myaccount.google.com/lesssecureapps/)
+- Error checking is not perfect
+
 
     usage: sbermaster.py [-h] [-d DATE] [-l LOGIN] [-p PASSWORD] [-s SITE]
                          [-f FOLDER] [-S SEARCH] [-w]

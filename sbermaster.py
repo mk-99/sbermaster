@@ -154,6 +154,19 @@ def process_sms_list(trans_list, warn=False):
                 })
                 continue
             values = re.match(
+                r'(.+?):? ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)(?: Сообщение: "?([^"]+)"?)',
+                transaction['body']
+            )
+            if values:
+                trf.append({
+                    'name': values.group(6),
+                    'sum': Decimal(values.group(4)),
+                    'currency': values.group(5),
+                    'comment': values.group(7),
+                    'time': transaction['time']
+                })
+                continue
+            values = re.match(
                 r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)',
                 transaction['body']
             )
@@ -192,9 +205,9 @@ def process_arguments():
                                      )
     parser.add_argument("-d", "--date", help="Start from date", default="1-Mar-2017")
     parser.add_argument("-l", "--login", help="Login with this name")
-    parser.add_argument("-p", "--password", help="Login with this password")
+    parser.add_argument("-p", "--password", help="Login with this password (prompt for password if none)")
     parser.add_argument("-s", "--site", help="Connect to this imap server", default="imap.gmail.com")
-    parser.add_argument("-f", "--folder", help="Folder to read SMS from", default="SMS")
+    parser.add_argument("-f", "--folder", help="Folder/label to read SMS from", default="SMS")
     parser.add_argument("-S", "--search", help="IMAP search string", default="FROM 900")
     parser.add_argument("-w", "--warn", help="print warnings", action="store_true")
     parser.add_argument("outfile", help="Output MS Excel file, please add .xlsx explicitly")

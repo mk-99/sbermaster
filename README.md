@@ -25,25 +25,25 @@ so you may be asked by Google to turn on less secure apps [here](https://myaccou
 - Error checking is not perfect
 
 
-    usage: sbermaster.py [-h] [-d DATE] [-l LOGIN] [-p PASSWORD] [-s SITE]
-                         [-f FOLDER] [-S SEARCH] [-w]
-                         outfile
-    
-    Process Sberbank SMS messages backed up to imap server and generatexlsx sheet
-    
-    positional arguments:
-      outfile               Output MS Excel file, please add .xlsx explicitly
-    
-    optional arguments:
-      -h, --help            show this help message and exit
-      -d DATE, --date DATE  Start from date (default: 1-Mar-2017)
-      -l LOGIN, --login LOGIN
-                            Login with this name (default: None)
-      -p PASSWORD, --password PASSWORD
-                            Login with this password (default: None)
-      -s SITE, --site SITE  Connect to this imap server (default: imap.gmail.com)
-      -f FOLDER, --folder FOLDER
-                            Folder to read SMS from (default: SMS)
-      -S SEARCH, --search SEARCH
-                            IMAP search string (default: FROM 900)
-      -w, --warn            print warnings (default: False)
+        usage: sbermaster.py [-h] [-d DATE] [-l LOGIN] [-p PASSWORD] [-s SITE]
+                             [-f FOLDER] [-S SEARCH] [-w]
+                             outfile
+        
+        Process Sberbank SMS messages backed up to imap server and generatexlsx sheet
+        
+        positional arguments:
+          outfile               Output MS Excel file, please add .xlsx explicitly
+        
+        optional arguments:
+          -h, --help            show this help message and exit
+          -d DATE, --date DATE  Start from date (default: 1-Mar-2017)
+          -l LOGIN, --login LOGIN
+                                Login with this name (default: None)
+          -p PASSWORD, --password PASSWORD
+                                Login with this password (default: None)
+          -s SITE, --site SITE  Connect to this imap server (default: imap.gmail.com)
+          -f FOLDER, --folder FOLDER
+                                Folder to read SMS from (default: SMS)
+          -S SEARCH, --search SEARCH
+                                IMAP search string (default: FROM 900)
+          -w, --warn            print warnings (default: False)

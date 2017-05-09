@@ -52,7 +52,7 @@ def process_mailbox(mb_reader, s=r"(SINCE 1-Mar-2017 FROM 900)"):
         for part in msg.walk(): # Parse message
             sms_list.append({'time': date_parse(dict(part.items())['Date']), 'body': part.get_content()})
         counter += 1
-        if counter % 25 == 0: # Make some awaiting progress
+        if counter % 100 == 0: # Make some awaiting progress
             print("Processed ", counter, "messages")
 
     return list(filter(stop_words, sms_list))
@@ -103,11 +103,15 @@ def process_sms_list(trans_list, warn=False):
     oper = []  # Card operations
     trf = []  # Money transfers
 
+    purchase_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+ [0-9]+:[0-9]+) (.+?) ([0-9]+(?:\.[0-9]+)*)(.+?)(?: с комиссией ([0-9]+(?:\.[0-9]+)*)(.+?))?( .+)? Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
+    mobilebank_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?) Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
+    transfer_re = re.compile(r'Сбербанк Онлайн. (.+?) перевел(?:.+?) ([0-9]+(?:\.[0-9]+)*) ([^ .]+)\.?(?: Сообщение: "?([^"]+)"?)?')
+    receive_re = re.compile(r'(.+?):? ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)(?: Сообщение: "?([^"]+)"?)')
+    receive2_re= re.compile(r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)')
+
     for transaction in trans_list:
         try:
-            values = re.match(
-                r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+ [0-9]+:[0-9]+) (.+?) ([0-9]+(?:\.[0-9]+)*)(.+?)(?: с комиссией ([0-9]+(?:\.[0-9]+)*)(.+?))?( .+)? Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)',
-                transaction['body'])
+            values = purchase_re.match(transaction['body'])
             if values: # Purchases, ATM operations and another incomes&expences
                 oper.append({
                     'card': values.group(1),
@@ -122,10 +126,7 @@ def process_sms_list(trans_list, warn=False):
                     'time': transaction['time']
                 })
                 continue
-            values = re.match(
-                r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?) Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)',
-                transaction['body']
-            )
+            values = mobilebank_re.match(transaction['body'])
             if values:
                 oper.append({
                     'card': values.group(1),
@@ -140,10 +141,7 @@ def process_sms_list(trans_list, warn=False):
                     'time': transaction['time']
                 })
                 continue
-            values = re.match(
-                r'Сбербанк Онлайн. (.+?) перевел(?:.+?) ([0-9]+(?:\.[0-9]+)*) ([^ .]+)\.?(?: Сообщение: "?([^"]+)"?)?',
-                transaction['body']
-            )
+            values = transfer_re.match(transaction['body'])
             if values:
                 trf.append({
                     'name': values.group(1),
@@ -153,10 +151,7 @@ def process_sms_list(trans_list, warn=False):
                     'time': transaction['time']
                 })
                 continue
-            values = re.match(
-                r'(.+?):? ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)(?: Сообщение: "?([^"]+)"?)',
-                transaction['body']
-            )
+            values = receive_re.match(transaction['body'])
             if values:
                 trf.append({
                     'name': values.group(6),
@@ -166,10 +161,7 @@ def process_sms_list(trans_list, warn=False):
                     'time': transaction['time']
                 })
                 continue
-            values = re.match(
-                r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)',
-                transaction['body']
-            )
+            values = receive2_re.match(transaction['body'])
             if values:
                 trf.append({
                     'name': values.group(6),

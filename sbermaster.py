@@ -1,26 +1,19 @@
 #!/usr/local/bin/python3
 
-import imaplib, getpass, email, pprint, argparse, re, sys, ssl
+import imaplib, getpass, email, pprint, argparse, sys, ssl
+import sberbank, vestabank
 
 from email import policy as pl
-from dateutil.parser import parse as date_parse
-from decimal import Decimal
 from openpyxl import Workbook
+from dateutil.parser import parse as date_parse
 
-
-def process_mailbox(mb_reader, s=r"(SINCE 1-Mar-2017 FROM 900)"):
+def process_mailbox(mb_reader, s=r"(SINCE 1-Mar-2017 FROM 900)", stop_words=lambda x: True):
     """
     Search messages from Sberbank in mailbox    
     :param mb_reader: mailbox reader object
     :param s: search string in IMAP format
     :return: messages as list of dicts {'time':headers, 'body':body}, time is datetime object, body is a string
     """
-
-    def stop_words(message):
-        for word in ('пароль', 'вход в сбербанк'):
-            if word in message['body'].lower():
-                return False
-        return True
 
     sms_list = []
 
@@ -58,133 +51,6 @@ def process_mailbox(mb_reader, s=r"(SINCE 1-Mar-2017 FROM 900)"):
     return list(filter(stop_words, sms_list))
 
 
-def process_sms_list(trans_list, warn=False):
-    """
-    Make list of operations from list of SMS
-    :param warn: print warnings 
-    :param trans_list: list of transactions as dicts with 'time' and 'body' keys
-    :return: tuple of (operations, transfers), operations as list of dicts with 'card', 'time', time1', 'time2', 'operation', 'currency',
-            'sum', 'balance', 'person', 'place', 'name', 'sum1', 'comment' keys
-            transfers as list of dicts with 'name', 'sum', 'comment', 'time' keys
-    """
-    def find_transfer(o, trf):
-        """
-        Finds transfer in trf that best matches operation o. "Best" means minimal time shift and sum equality
-        :param o: operation
-        :param trf: list of transfers
-        :return: transfer the most relevant to operation 
-        """
-        MAXDELTA = 150 # maximum seconds between transaction and operation SMS-es
-        candidates = []
-        min_seconds = 'Unknown'
-        retval = 'Not found'
-
-        for t in trf:
-            if t['sum'] == o['sum']:
-                candidates.append(t)
-        if not len(candidates):
-            return retval
-
-        for c in candidates:
-            delta = abs(int((c['time'] - o['time']).total_seconds()))
-            if delta > MAXDELTA:
-                continue
-            if min_seconds == 'Unknown':
-                min_seconds = delta
-                retval = c
-            elif min_seconds > delta:
-                min_seconds = delta
-                retval = c
-            else:
-                retval = c
-
-        return retval
-
-    oper = []  # Card operations
-    trf = []  # Money transfers
-
-    purchase_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+ [0-9]+:[0-9]+) (.+?) ([0-9]+(?:\.[0-9]+)*)(.+?)(?: с комиссией ([0-9]+(?:\.[0-9]+)*)(.+?))?( .+)? Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
-    mobilebank_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?) Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
-    transfer_re = re.compile(r'Сбербанк Онлайн. (.+?) перевел(?:.+?) ([0-9]+(?:\.[0-9]+)*) ([^ .]+)\.?(?: Сообщение: "?([^"]+)"?)?')
-    receive_re = re.compile(r'(.+?):? ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)(?: Сообщение: "?([^"]+)"?)')
-    receive2_re= re.compile(r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)')
-
-    for transaction in trans_list:
-        try:
-            values = purchase_re.match(transaction['body'])
-            if values: # Purchases, ATM operations and another incomes&expences
-                oper.append({
-                    'card': values.group(1),
-                    'time1': date_parse(values.group(2), dayfirst=True),
-                    'oper': values.group(3),
-                    'sum': Decimal(values.group(4)),
-                    'currency': values.group(5),
-                    'comission': Decimal(values.group(6)) if values.group(6) else None,
-                    'commcurr': values.group(7),
-                    'place': values.group(8),
-                    'bal': Decimal(values.group(9)),
-                    'time': transaction['time']
-                })
-                continue
-            values = mobilebank_re.match(transaction['body'])
-            if values:
-                oper.append({
-                    'card': values.group(1),
-                    'time1': date_parse(values.group(2), dayfirst=True),
-                    'oper': values.group(3),
-                    'sum': Decimal(values.group(4)),
-                    'currency': values.group(5),
-                    'comission': None,
-                    'commcurr': None,
-                    'place': None,
-                    'bal': Decimal(values.group(6)),
-                    'time': transaction['time']
-                })
-                continue
-            values = transfer_re.match(transaction['body'])
-            if values:
-                trf.append({
-                    'name': values.group(1),
-                    'sum': Decimal(values.group(2)),
-                    'currency': values.group(3),
-                    'comment': values.group(4),
-                    'time': transaction['time']
-                })
-                continue
-            values = receive_re.match(transaction['body'])
-            if values:
-                trf.append({
-                    'name': values.group(6),
-                    'sum': Decimal(values.group(4)),
-                    'currency': values.group(5),
-                    'comment': values.group(7),
-                    'time': transaction['time']
-                })
-                continue
-            values = receive2_re.match(transaction['body'])
-            if values:
-                trf.append({
-                    'name': values.group(6),
-                    'sum': Decimal(values.group(4)),
-                    'currency': values.group(5),
-                    'comment': "",
-                    'time': transaction['time']
-                })
-                continue
-            if warn:
-                print("WARNING: unknown transaction")
-                pprint.pprint(transaction)
-        except:
-            print("ERROR: unable to process")
-            pprint.pprint(transaction)
-
-    for o in oper:
-        if o['oper'] == 'зачисление':
-            o['transfer'] = find_transfer(o, trf)
-
-    return oper, trf
-
-
 def process_arguments():
     """
     Processes command line arguments 
@@ -201,10 +67,18 @@ def process_arguments():
     parser.add_argument("-s", "--site", help="Connect to this imap server", default="imap.gmail.com")
     parser.add_argument("-f", "--folder", help="Folder/label to read SMS from", default="SMS")
     parser.add_argument("-S", "--search", help="IMAP search string", default="FROM 900")
-    parser.add_argument("-w", "--warn", help="print warnings", action="store_true")
+    parser.add_argument("-w", "--warn", help="Print warnings", action="store_true")
+    parser.add_argument("-q", "--quiet", help="No print at all", action="store_true")
+    parser.add_argument("-1", "--sms", help="Print SMS list and stop", action="store_true")
+    parser.add_argument("-b", "--bank", help="'sberbank' or 'vesta' (also changes search string)", default="sberbank")
     parser.add_argument("outfile", help="Output MS Excel file, please add .xlsx explicitly")
 
-    return vars(parser.parse_args())
+    prog_arguments =  vars(parser.parse_args())
+
+    if prog_arguments['bank'] == "vesta" and prog_arguments['search'] == "FROM 900":
+        prog_arguments['search'] = "FROM VestaBank"
+
+    return prog_arguments
 
 
 def save_operations(arg, wb_file='sbercards.xlsx'):
@@ -273,6 +147,16 @@ if __name__ == "__main__":
 
     config_opts = process_arguments()
 
+    if config_opts['bank'] == "vesta":
+        process_sms_list = vestabank.process_sms_list
+        stop_words = vestabank.stop_words
+    elif config_opts['bank'] == "sberbank":
+        process_sms_list = sberbank.process_sms_list
+        stop_words = sberbank.stop_words
+    else:
+        print("ERROR: unknown bank ", config_opts['bank'])
+        sys.exit(1)
+
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
@@ -289,13 +173,17 @@ if __name__ == "__main__":
     rv, data = mb_reader.select(config_opts['folder'])
     if rv == 'OK':
         search_string = "(" + config_opts['search'] + " SINCE " + config_opts['date'] + ")"
-        sms_list = process_mailbox(mb_reader, search_string)
+        sms_list = process_mailbox(mb_reader, search_string, stop_words)
         mb_reader.close()
     else:
         print("ERROR: Unable to open mailbox ", rv)
         sys.exit(1)
 
     if sms_list:
-        save_operations((process_sms_list(sms_list, warn=config_opts['warn'])), wb_file=config_opts['outfile'])
+        if config_opts['sms']:
+            for sms in sms_list:
+                print(sms['body'])
+        else:
+            save_operations((process_sms_list(sms_list, warn=config_opts['warn'])), wb_file=config_opts['outfile'])
 
     mb_reader.logout()

@@ -30,7 +30,7 @@ def process_mailbox(mb_reader, s=r"(SINCE 1-Mar-2017 FROM 900)", stop_words=lamb
     print("Fetching...")
     rv, data = mb_reader.fetch(mset, '(RFC822)')
     if rv != 'OK':
-        print("ERROR getting message", mset)
+        print("ERROR: cannot get message")
         return sms_list
 
     msg_list = []
@@ -57,21 +57,21 @@ def process_arguments():
     :return: dict of configuration options
     """
 
-    parser = argparse.ArgumentParser(description="Process Sberbank SMS messages backed up to imap server and generate"
+    parser = argparse.ArgumentParser(description="Process bank SMS messages backed up to imap server and generate"
                                                  "xlsx sheet",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter
                                      )
     parser.add_argument("-d", "--date", help="Start from date", default="1-Mar-2017")
-    parser.add_argument("-l", "--login", help="Login with this name")
+    parser.add_argument("-l", "--login", help="Login with this name", required=True)
     parser.add_argument("-p", "--password", help="Login with this password (prompt for password if none)")
     parser.add_argument("-s", "--site", help="Connect to this imap server", default="imap.gmail.com")
     parser.add_argument("-f", "--folder", help="Folder/label to read SMS from", default="SMS")
     parser.add_argument("-S", "--search", help="IMAP search string", default="FROM 900")
     parser.add_argument("-w", "--warn", help="Print warnings", action="store_true")
     parser.add_argument("-q", "--quiet", help="No print at all", action="store_true")
-    parser.add_argument("-1", "--sms", help="Print SMS list and stop", action="store_true")
     parser.add_argument("-b", "--bank", help="'sberbank' or 'vesta' (also changes search string)", default="sberbank")
-    parser.add_argument("outfile", help="Output MS Excel file, please add .xlsx explicitly")
+    parser.add_argument("outfile", help="Output MS Excel file, please add .xlsx explicitly, \
+                         if none print SMS list and stop", nargs="?", default=None)
 
     prog_arguments =  vars(parser.parse_args())
 
@@ -84,9 +84,9 @@ def process_arguments():
 def save_operations(arg, wb_file='sbercards.xlsx'):
     """
     Save operations to xlsx
+    :param arg: tuple of (oper, trf), oper is a list of transactions as sms-es
+            trf is a list of transfers as sms-es
     :param wb_file: write to this file
-    :param arg: tuple of (oper, trf), oper is list of transactions as sms-es
-            trf is list of transfers as sms-es
     :return: None
     """
 
@@ -97,7 +97,7 @@ def save_operations(arg, wb_file='sbercards.xlsx'):
     ws.title = "Operations"
 
     i = 1
-    for val in ("Card", "Time", "Time inside SMS", "Operation", "Sum", "Currency",
+    for val in ("Card", "Time", "Time in SMS", "Operation", "Sum", "Currency",
                 "Comission", "Comm. currency", "Balance", "Place",
                 "Name", "Comment", "Time of transfer"
                ):
@@ -126,20 +126,21 @@ def save_operations(arg, wb_file='sbercards.xlsx'):
             ws.cell(row=cur_row, column=13, value=o['transfer']['time'])
         cur_row += 1
 
-    ws1 = wb.create_sheet("Transfers")
+    if trf:
+        ws1 = wb.create_sheet("Transfers")
 
-    i = 1
-    for val in ('Time', 'Name', 'Sum', 'Comment'):
-        ws1.cell(row=1, column=i, value=val)
-        i += 1
+        i = 1
+        for val in ('Time', 'Name', 'Sum', 'Comment'):
+            ws1.cell(row=1, column=i, value=val)
+            i += 1
 
-    cur_row = 2
-    for transaction in trf:
-        ws1.cell(row=cur_row, column=1, value=transaction['time'])
-        ws1.cell(row=cur_row, column=2, value=transaction['name'])
-        ws1.cell(row=cur_row, column=3, value=transaction['sum'])
-        ws1.cell(row=cur_row, column=4, value=transaction['comment'])
-        cur_row += 1
+        cur_row = 2
+        for transaction in trf:
+            ws1.cell(row=cur_row, column=1, value=transaction['time'])
+            ws1.cell(row=cur_row, column=2, value=transaction['name'])
+            ws1.cell(row=cur_row, column=3, value=transaction['sum'])
+            ws1.cell(row=cur_row, column=4, value=transaction['comment'])
+            cur_row += 1
 
     wb.save(wb_file)
 
@@ -154,7 +155,7 @@ if __name__ == "__main__":
         process_sms_list = sberbank.process_sms_list
         stop_words = sberbank.stop_words
     else:
-        print("ERROR: unknown bank ", config_opts['bank'])
+        print("ERROR: Unknown bank", config_opts['bank'])
         sys.exit(1)
 
     context = ssl.create_default_context()
@@ -167,7 +168,7 @@ if __name__ == "__main__":
                                    config_opts['password'] if config_opts['password'] else getpass.getpass()
                                    )
     except imaplib.IMAP4.error:
-        print("LOGIN FAILED!!! ")
+        print("ERROR: Login failed")
         sys.exit(1)
 
     rv, data = mb_reader.select(config_opts['folder'])
@@ -180,10 +181,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if sms_list:
-        if config_opts['sms']:
-            for sms in sms_list:
-                print(sms['body'])
-        else:
+        if config_opts['outfile']:
             save_operations((process_sms_list(sms_list, warn=config_opts['warn'])), wb_file=config_opts['outfile'])
+        else:
+            for sms in sms_list:
+                pprint.pprint(sms)
 
     mb_reader.logout()

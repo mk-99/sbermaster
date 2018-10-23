@@ -57,7 +57,7 @@ def process_sms_list(trans_list, warn=False):
     oper = []  # Card operations
     trf = []  # Money transfers
 
-    purchase_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+ [0-9]+:[0-9]+) (.+?) ([0-9]+(?:\.[0-9]+)*)(.+?)(?: с комиссией ([0-9]+(?:\.[0-9]+)*)(.+?))?( .+)? Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
+    purchase_re = re.compile(r'(.+?) ((?:[0-9]+\.[0-9]+\.[0-9]+ )?[0-9]+:[0-9]+) (.+?) ([0-9]+(?:\.[0-9]+)*)(.+?)(?: с комиссией ([0-9]+(?:\.[0-9]+)*)(.+?))?( .+)? Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
     mobilebank_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?) Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
     transfer_re = re.compile(r'Сбербанк Онлайн. (.+?) перевел(?:.+?) ([0-9]+(?:\.[0-9]+)*) ([^ .]+)\.?(?: Сообщение: "?([^"]+)"?)?')
     receive_re = re.compile(r'(.+?):? ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)(?: Сообщение: "?([^"]+)"?)')
@@ -68,61 +68,61 @@ def process_sms_list(trans_list, warn=False):
             values = purchase_re.match(transaction['body'])
             if values: # Purchases, ATM operations and another incomes&expences
                 oper.append({
+                    'time': transaction['time'],
                     'card': values.group(1),
-                    'time1': date_parse(values.group(2), dayfirst=True),
+                    'time1': date_parse(values.group(2), default=transaction['time'], dayfirst=True),
                     'oper': values.group(3),
                     'sum': Decimal(values.group(4)),
                     'currency': values.group(5),
                     'comission': Decimal(values.group(6)) if values.group(6) else None,
                     'commcurr': values.group(7),
                     'place': values.group(8),
-                    'bal': Decimal(values.group(9)),
-                    'time': transaction['time']
+                    'bal': Decimal(values.group(9))
                 })
                 continue
             values = mobilebank_re.match(transaction['body'])
             if values:
                 oper.append({
+                    'time': transaction['time'],
                     'card': values.group(1),
-                    'time1': date_parse(values.group(2), dayfirst=True),
+                    'time1': date_parse(values.group(2), default=transaction['time'], dayfirst=True),
                     'oper': values.group(3),
                     'sum': Decimal(values.group(4)),
                     'currency': values.group(5),
                     'comission': None,
                     'commcurr': None,
                     'place': None,
-                    'bal': Decimal(values.group(6)),
-                    'time': transaction['time']
+                    'bal': Decimal(values.group(6))
                 })
                 continue
             values = transfer_re.match(transaction['body'])
             if values:
                 trf.append({
+                    'time': transaction['time'],
                     'name': values.group(1),
                     'sum': Decimal(values.group(2)),
                     'currency': values.group(3),
-                    'comment': values.group(4),
-                    'time': transaction['time']
+                    'comment': values.group(4)
                 })
                 continue
             values = receive_re.match(transaction['body'])
             if values:
                 trf.append({
+                    'time': transaction['time'],
                     'name': values.group(6),
                     'sum': Decimal(values.group(4)),
                     'currency': values.group(5),
-                    'comment': values.group(7),
-                    'time': transaction['time']
+                    'comment': values.group(7)
                 })
                 continue
             values = receive2_re.match(transaction['body'])
             if values:
                 trf.append({
+                    'time': transaction['time'],
                     'name': values.group(6),
                     'sum': Decimal(values.group(4)),
                     'currency': values.group(5),
-                    'comment': "",
-                    'time': transaction['time']
+                    'comment': ""
                 })
                 continue
             if warn:

@@ -8,8 +8,8 @@ from dateutil.parser import parse as date_parse
 def stop_words(message):
     for word in ('карта', 'karta'):
         if word in message['body'].lower():
-            for word in ('otrazhena v vypiske', 'vhod v internet-bank', 'вход в vestabank', \
-                         'вход в мобильное приложение', 'ispolnen platezh', 'пароль',):
+            for word in ('nikomu ne', 'vhod v', \
+                         'вход в', 'пароль',):
                 if word in message['body'].lower():
                     return False
             return True
@@ -29,7 +29,9 @@ def process_sms_list(trans_list, warn=False):
     oper = []  # Card operations
     trf = []  # Money transfers
 
-    purchase_re = re.compile(r'^(?:Karta|Карта) ([0-9]+?): (.+?), (.+?) ([0-9.]+) (.+?)[.,] (?:(?:комиссия|komissiya) D([0-9.]+) (.+?)\. )?(?:(.+?)\. )? *(?:Доступно|Dostupno) ([0-9.]+) (.+?)\.')
+# Karta *8741: Oplata 250.00 RUB;IP SOROKIN E.A. SMT;21.10.2018 17:05,dostupno 283.16 RUB
+
+    purchase_re = re.compile(r'^Karta \*([0-9]+?): (.+?) ([0-9.]+) (.+?);(.+?);(.+)[,;] ?dostupno ([0-9.]+) ([^.]+)(?:\(.+\))?\.?$')
 
     for transaction in trans_list:
         try:
@@ -38,14 +40,14 @@ def process_sms_list(trans_list, warn=False):
                 d = {
                     'time': transaction['time'],
                     'card': values.group(1),
-                    'time1': date_parse(values.group(2), dayfirst=True),
-                    'oper': values.group(3),
-                    'sum': Decimal(values.group(4)) if values.group(4) else None,
-                    'currency': values.group(5),
-                    'comission': Decimal(values.group(6)) if values.group(6) else None,
-                    'commcurr': values.group(7),
-                    'place': values.group(8),
-                    'bal': Decimal(values.group(9)) if values.group(9) else None
+                    'time1': date_parse(values.group(6), dayfirst=True),
+                    'oper': values.group(2),
+                    'sum': Decimal(values.group(3)) if values.group(3) else None,
+                    'currency': values.group(4),
+                    'comission': None,
+                    'commcurr': None,
+                    'place': values.group(5).strip(),
+                    'bal': Decimal(values.group(7)) if values.group(7) else None
                 }
                 oper.append(d)
                 continue

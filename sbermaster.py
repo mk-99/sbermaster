@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3
 
 import imaplib, getpass, email, pprint, argparse, sys, ssl
-import sberbank, vestabank
+import sberbank, vestabank, vtbbank
 
 from email import policy as pl
 from openpyxl import Workbook
@@ -69,14 +69,16 @@ def process_arguments():
     parser.add_argument("-S", "--search", help="IMAP search string", default="FROM 900")
     parser.add_argument("-w", "--warn", help="Print warnings", action="store_true")
     parser.add_argument("-q", "--quiet", help="No print at all", action="store_true")
-    parser.add_argument("-b", "--bank", help="'sberbank' or 'vesta' (also changes search string)", default="sberbank")
+    parser.add_argument("-b", "--bank", help="'sberbank' | 'vesta' | 'vtb' (also changes search string)", default="sberbank")
     parser.add_argument("outfile", help="Output MS Excel file, please add .xlsx explicitly, \
                          if none print SMS list and stop", nargs="?", default=None)
 
-    prog_arguments =  vars(parser.parse_args())
+    prog_arguments = vars(parser.parse_args())
 
     if prog_arguments['bank'] == "vesta" and prog_arguments['search'] == "FROM 900":
         prog_arguments['search'] = "FROM VestaBank"
+    if prog_arguments['bank'] == 'vtb' and prog_arguments['search'] == 'FROM 900':
+        prog_arguments['search'] = "FROM VTB"
 
     return prog_arguments
 
@@ -151,6 +153,9 @@ if __name__ == "__main__":
     if config_opts['bank'] == "vesta":
         process_sms_list = vestabank.process_sms_list
         stop_words = vestabank.stop_words
+    elif config_opts['bank'] == "vtb":
+        process_sms_list = vtbbank.process_sms_list
+        stop_words = vtbbank.stop_words
     elif config_opts['bank'] == "sberbank":
         process_sms_list = sberbank.process_sms_list
         stop_words = sberbank.stop_words

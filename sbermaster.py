@@ -61,7 +61,7 @@ def process_arguments():
                                                  "xlsx sheet",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter
                                      )
-    parser.add_argument("-d", "--date", help="Start from date", default="1-Mar-2017")
+    parser.add_argument("-d", "--date", help="Start from date", default="1-Mar-2018")
     parser.add_argument("-l", "--login", help="Login with this name", required=True)
     parser.add_argument("-p", "--password", help="Login with this password (prompt for password if none)")
     parser.add_argument("-s", "--site", help="Connect to this imap server", default="imap.gmail.com")
@@ -98,6 +98,7 @@ def save_operations(arg, wb_file='sbercards.xlsx'):
     ws = wb.active
     ws.title = "Operations"
 
+    # Initialize columns
     i = 1
     for val in ("Card", "Time", "Time in SMS", "Operation", "Sum", "Currency",
                 "Comission", "Comm. currency", "Balance", "Place",
@@ -131,6 +132,7 @@ def save_operations(arg, wb_file='sbercards.xlsx'):
     if trf:
         ws1 = wb.create_sheet("Transfers")
 
+        # Initialize columns
         i = 1
         for val in ('Time', 'Name', 'Sum', 'Comment'):
             ws1.cell(row=1, column=i, value=val)

@@ -32,6 +32,7 @@ def process_sms_list(trans_list, warn=False):
 # Karta *8741: Oplata 250.00 RUB;IP SOROKIN E.A. SMT;21.10.2018 17:05,dostupno 283.16 RUB
 
     purchase_re = re.compile(r'^Karta \*([0-9]+?): (.+?) ([0-9.]+) (.+?);(.+?);(.+)[,;] ?dostupno ([0-9.]+) ([^.]+)(?:\(.+\))?\.?$')
+    refund_re = re.compile(r'^Karta \*([0-9]+?): (.+?) ([0-9.]+) (.+?); ?dostupno ([0-9.]+) ([^.]+).+$')
 
     for transaction in trans_list:
         try:
@@ -48,6 +49,22 @@ def process_sms_list(trans_list, warn=False):
                     'commcurr': None,
                     'place': values.group(5).strip(),
                     'bal': Decimal(values.group(7)) if values.group(7) else None
+                }
+                oper.append(d)
+                continue
+            values = refund_re.match(transaction['body'])
+            if values: # Refunds and another deposits
+                d = {
+                    'time': transaction['time'],
+                    'card': values.group(1),
+                    'time1': None,
+                    'oper': values.group(2),
+                    'sum': Decimal(values.group(3)) if values.group(3) else None,
+                    'currency': values.group(4),
+                    'comission': None,
+                    'commcurr': None,
+                    'place': None,
+                    'bal': Decimal(values.group(5)) if values.group(5) else None
                 }
                 oper.append(d)
                 continue

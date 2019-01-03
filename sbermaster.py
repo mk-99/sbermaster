@@ -99,13 +99,13 @@ def save_operations(arg, wb_file='sbercards.xlsx'):
     ws.title = "Operations"
 
     # Initialize columns
-    i = 1
+    cur_col = 1
     for val in ("Card", "Time", "Time in SMS", "Operation", "Sum", "Currency",
                 "Comission", "Comm. currency", "Balance", "Place",
                 "Name", "Comment", "Time of transfer"
                ):
-        ws.cell(row=1, column=i, value=val)
-        i += 1
+        ws.cell(row=1, column=cur_col, value=val)
+        cur_col += 1
 
     cur_row = 2
     for o in oper:
@@ -133,10 +133,10 @@ def save_operations(arg, wb_file='sbercards.xlsx'):
         ws1 = wb.create_sheet("Transfers")
 
         # Initialize columns
-        i = 1
+        cur_col = 1
         for val in ('Time', 'Name', 'Sum', 'Comment'):
-            ws1.cell(row=1, column=i, value=val)
-            i += 1
+            ws1.cell(row=1, column=cur_col, value=val)
+            cur_col += 1
 
         cur_row = 2
         for transaction in trf:

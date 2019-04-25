@@ -6,7 +6,8 @@ The best way to obtain reasonable financial information is to read SMS messages 
 with credit card or in electronic/mobile bank.
 
 **sbermaster** works with SMS Backup+ Android application
-(https://play.google.com/store/apps/details?id=com.zegoggles.smssync&hl=en)
+https://play.google.com/store/apps/details?id=com.zegoggles.smssync&hl=en
+https://github.com/jberkel/sms-backup-plus
 
 It reads SMS messages from IMAP server (gmail.com is used by default), parses them and generates bank statement
 as Excel 2010 table (.xlsx) file.

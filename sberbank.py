@@ -23,7 +23,8 @@ def process_sms_list(trans_list, warn=False):
     """
     def find_transfer(o, trf):
         """
-        Finds transfer in trf that best matches operation o. "Best" means minimal time shift and sum equality
+        Finds transfer in trf that best matches operation o (old style - person in separate SMS).
+        "Best" means minimal time shift and sum equality
         :param o: operation
         :param trf: list of transfers
         :return: transfer the most relevant to operation
@@ -61,10 +62,30 @@ def process_sms_list(trans_list, warn=False):
     mobilebank_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?) Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
     transfer_re = re.compile(r'Сбербанк Онлайн. (.+?) перевел(?:.+?) ([0-9]+(?:\.[0-9]+)*) ([^ .]+)\.?(?: Сообщение: "?([^"]+)"?)?')
     receive_re = re.compile(r'(.+?):? ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)(?: Сообщение: "?([^"]+)"?)')
-    receive2_re= re.compile(r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)')
+    receivenew_re= re.compile(r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от (.+)[\r\n]+Баланс: ([0-9]+(?:\.[0-9]+)*)(.+?)(?:[\r\n]+Сообщение: "(.+?)")?')
 
     for transaction in trans_list:
         try:
+            values = receivenew_re.match(transaction['body'])
+            if values: # Money transfers - new style (Apr 2019)
+                oper.append({
+                    'time': transaction['time'],
+                    'card': values.group(1),
+                    'time1': date_parse(values.group(2), default=transaction['time'], dayfirst=True),
+                    'oper': values.group(3),
+                    'sum': Decimal(values.group(4)),
+                    'currency': values.group(5),
+                    'comission': None,
+                    'commcurr': None,
+                    'place': None,
+                    'bal': Decimal(values.group(7)),
+                    'transfer': {
+                        'name': values.group(6),
+                        'comment': values.group(9),
+                        'time': transaction['time']
+                    }
+                })
+                continue
             values = purchase_re.match(transaction['body'])
             if values: # Purchases, ATM operations and another incomes&expences
                 oper.append({
@@ -81,7 +102,7 @@ def process_sms_list(trans_list, warn=False):
                 })
                 continue
             values = mobilebank_re.match(transaction['body'])
-            if values:
+            if values: # Mobile bank fees
                 oper.append({
                     'time': transaction['time'],
                     'card': values.group(1),
@@ -96,7 +117,7 @@ def process_sms_list(trans_list, warn=False):
                 })
                 continue
             values = transfer_re.match(transaction['body'])
-            if values:
+            if values: # Money transfers - old style, sender
                 trf.append({
                     'time': transaction['time'],
                     'name': values.group(1),
@@ -106,23 +127,13 @@ def process_sms_list(trans_list, warn=False):
                 })
                 continue
             values = receive_re.match(transaction['body'])
-            if values:
+            if values: #
                 trf.append({
                     'time': transaction['time'],
                     'name': values.group(6),
                     'sum': Decimal(values.group(4)),
                     'currency': values.group(5),
                     'comment': values.group(7)
-                })
-                continue
-            values = receive2_re.match(transaction['body'])
-            if values:
-                trf.append({
-                    'time': transaction['time'],
-                    'name': values.group(6),
-                    'sum': Decimal(values.group(4)),
-                    'currency': values.group(5),
-                    'comment': ""
                 })
                 continue
             if warn:

@@ -62,10 +62,31 @@ def process_sms_list(trans_list, warn=False):
     mobilebank_re = re.compile(r'(.+?) ([0-9]+\.[0-9]+\.[0-9]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?) Баланс: ([0-9]+(?:\.[0-9]+)*)(?:.+)')
     transfer_re = re.compile(r'Сбербанк Онлайн. (.+?) перевел(?:.+?) ([0-9]+(?:\.[0-9]+)*) ([^ .]+)\.?(?: Сообщение: "?([^"]+)"?)?')
     receive_re = re.compile(r'(.+?):? ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от отправителя (.+)(?: Сообщение: "?([^"]+)"?)')
-    receivenew_re= re.compile(r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от (.+)[\r\n]+Баланс: ([0-9]+(?:\.[0-9]+)*)(.+?)(?:[\r\n]+Сообщение: "(.+?)")?')
+    receivenew_re = re.compile(r'(.+?) ([0-9.:]+) (.+) ([0-9]+(?:\.[0-9]+)*)(.+?)\.? от (.+)[\r\n]+Баланс: ([0-9]+(?:\.[0-9]+)*)(.+?)(?:[\r\n]+Сообщение: "(.+?)")?')
+    receivenew2_re = re.compile(r'Перевод ([0-9]+(?:\.[0-9]+)*)(.+?) от (.+)[\r\n]+Баланс (.+?): ([0-9]+(?:\.[0-9]+)*)(.+?)(?:[\r\n]+Сообщение: "(.+?)")?')
 
     for transaction in trans_list:
         try:
+            values = receivenew2_re.match(transaction['body'])
+            if values: # Money transfers - new style (Jun 2019)
+                oper.append({
+                    'time': transaction['time'],
+                    'card': values.group(4),
+                    'time1': transaction['time'],
+                    'oper': 'Вх. перевод',
+                    'sum': Decimal(values.group(1)),
+                    'currency': values.group(2),
+                    'comission': None,
+                    'commcurr': None,
+                    'place': None,
+                    'bal': Decimal(values.group(5)),
+                    'transfer': {
+                        'name': values.group(3),
+                        'comment': values.group(7),
+                        'time': transaction['time']
+                    }
+                })
+                continue
             values = receivenew_re.match(transaction['body'])
             if values: # Money transfers - new style (Apr 2019)
                 oper.append({

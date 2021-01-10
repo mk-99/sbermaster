@@ -34,6 +34,8 @@ def process_sms_list(trans_list, warn=False):
     purchase_re = re.compile(r'^Karta \*([0-9]+?): (.+?) ([0-9.]+) (.+?);(.+?);(.+)[,;] ?dostupno ([0-9.]+) ([^.]+)(?:\(.+\))?\.?$')
     refund_re = re.compile(r'^Karta \*([0-9]+?): (.+?) ([0-9.]+) (.+?); ?dostupno ([0-9.]+) ([^.]+).+$')
 
+    purchase2_re = re.compile(r'^(.+?) ([0-9.]+)(.+?) (?:Karta|Карта)\*(.+?) (.+?) (?:Balans|Баланс) ([0-9.]+)(.+?) ([0-9]+:[0-9]+)')
+
     for transaction in trans_list:
         try:
             values = purchase_re.match(transaction['body'])
@@ -65,6 +67,22 @@ def process_sms_list(trans_list, warn=False):
                     'commcurr': None,
                     'place': None,
                     'bal': Decimal(values.group(5)) if values.group(5) else None
+                }
+                oper.append(d)
+                continue
+            values = purchase2_re.match(transaction['body'])
+            if values: # Refunds and another deposits
+                d = {
+                    'time': transaction['time'],
+                    'card': values.group(4),
+                    'time1': date_parse(values.group(8), default=transaction['time'], dayfirst=True),
+                    'oper': values.group(1),
+                    'sum': Decimal(values.group(2)) if values.group(2) else None,
+                    'currency': values.group(3),
+                    'comission': None,
+                    'commcurr': None,
+                    'place': values.group(5),
+                    'bal': Decimal(values.group(6)) if values.group(6) else None
                 }
                 oper.append(d)
                 continue
